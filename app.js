@@ -35,14 +35,13 @@ document.addEventListener("DOMContentLoaded", async function() {
             throw new Error(res.error || "Ошибка макроса");
         }
         
-        // 1. Заполняем Объекты (Колонка B - полное название)
         const objectSelect = document.getElementById('object-select');
         res.objects.forEach(obj => {
-            const optionItem = new Option(obj.name, obj.name);
+            const textValue = obj.id + " | " + obj.name;
+            const optionItem = new Option(textValue, obj.name);
             objectSelect.add(optionItem);
         });
         
-        // 2. Заполняем Подрядчиков (Колонка B)
         const contractorSelect = document.getElementById('contractor-select');
         res.contractors.forEach(contr => {
             const optionItem = new Option(contr, contr);
@@ -70,7 +69,7 @@ async function startFullAudit() {
     const contr = document.getElementById('contractor-select').value;
     
     if(!insp || !obj || !contr) {
-        return alert("Заполните ФИО и выберите Объект и Подрядчика!");
+        return alert("Заполните ФИО и выберите Объект и Подрядчика из списков!");
     }
     
     auditSession.inspector = insp; 
@@ -89,7 +88,6 @@ async function startFullAudit() {
     document.getElementById('audit-meta-contr').textContent = auditSession.contractor;
 
     try {
-        // Запрашиваем ВСЕ вопросы разом (без фильтрации по категориям)
         let url = API_URL + "?action=getChecklist";
         const response = await fetch(url, { method: "GET", redirect: "follow" });
         const result = await response.json();
@@ -109,13 +107,11 @@ async function startFullAudit() {
             card.className = 'card';
             card.id = 'q-box-' + q.id;
             
-            // Раздел (Категория из колонки А)
             const badge = document.createElement('div');
             badge.className = 'badge';
             badge.textContent = q.category;
             card.appendChild(badge);
             
-            // Критерий проверки (Текст из колонки B)
             const txt = document.createElement('p');
             txt.style.margin = '5px 0 12px 0';
             txt.style.fontSize = '16px';
@@ -123,7 +119,6 @@ async function startFullAudit() {
             txt.textContent = q.question;
             card.appendChild(txt);
             
-            // Норматив (Если заполнен в колонке C)
             if (q.normative) {
                 const norm = document.createElement('div');
                 norm.className = 'normative-text';
@@ -134,7 +129,6 @@ async function startFullAudit() {
                 card.appendChild(norm);
             }
             
-            // Ряд с кнопками выбора соответствия
             const btnRow = document.createElement('div');
             btnRow.className = 'btn-row';
             
@@ -158,7 +152,6 @@ async function startFullAudit() {
             btnRow.appendChild(btnFail);
             card.appendChild(btnRow);
             
-            // Поле для ввода списка нарушений/комментария
             const inp = document.createElement('input');
             inp.type = 'text';
             inp.id = 'comment-' + q.id;
@@ -200,7 +193,6 @@ async function submitAudit() {
         return alert("Вы не провели оценку ни одного критерия из чек-листа!");
     }
     
-    // Переносим текст нарушений из полей ввода в итоговый пакет данных
     auditSession.results.forEach(item => {
         const inp = document.getElementById('comment-' + item.id);
         if(inp) {
