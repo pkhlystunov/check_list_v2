@@ -1,5 +1,5 @@
 // НА СТРОКЕ 2 УКАЖИТЕ ССЫЛКУ, КОТОРУЮ ВАМ ВЫДАЛ GOOGLE APPS SCRIPT ПРИ ДЕПЛОЕ:
-const API_URL = "https://script.google.com/macros/s/AKfycbxmcn73GOtV-nsRUUSTA9ed-wE4EvI4uvIb5FgRZbV6H6kO-ML4ktxOb-9VOVtE_Kl_/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbyLFU7ceVKxS-L8kDjcJwKLZ-AAXXXzOICKNlTypxu_zopUcPtf_e90pzDi6xmbsDy7/exec"; 
 
 let auditSession = { 
     inspector: '', 
@@ -8,7 +8,8 @@ let auditSession = {
     results: [] 
 };
 
-let finalViolationsText = "";
+// Переменная для хранения ссылки на PDF, сгенерированный сервером Google
+let googleServerPdfUrl = "";
 
 document.addEventListener("DOMContentLoaded", async function() {
     const errorDiv = document.getElementById('error-display');
@@ -60,7 +61,7 @@ async function startFullAudit() {
     auditSession.objectName = obj; 
     auditSession.contractor = contr;
     auditSession.results = [];
-    finalViolationsText = "";
+    googleServerPdfUrl = "";
     
     document.getElementById('pdf-btn').disabled = true;
     document.getElementById('submit-btn').disabled = false;
@@ -154,6 +155,7 @@ function setQuestionResult(id, status, questionText, categoryName, normativeText
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 }
 
+// КНОПКА 1: Отправка данных. Сервер сам сформирует PDF ячейку и создаст файл на Google Диске!
 async function submitAuditOnly() {
     if (auditSession.results.length === 0) {
         return alert("Вы не провели оценку ни одного критерия из чек-листа!");
@@ -173,7 +175,7 @@ async function submitAuditOnly() {
         }
     });
 
-    finalViolationsText = violations.length > 0 
+    const finalViolationsText = violations.length > 0 
         ? violations.join("\n\n") 
         : "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
 
@@ -181,83 +183,48 @@ async function submitAuditOnly() {
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true; 
-    btn.innerText = "⏳ Сохранение в таблицу...";
+    btn.innerText = "⏳ Генерация Акта на сервере Google...";
 
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify(auditSession),
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         
-        btn.innerText = "✅ Данные в Google отправлены!";
-        document.getElementById('pdf-btn').disabled = false;
-        alert('Успешно внесено во вкладку "7_Реестр_Проверок"! Нажмите вторую кнопку для скачивания PDF.');
+        const rawResponse = await response.text();
+        const serverResult = JSON.parse(rawResponse);
         
-    } catch(googleError) {
-        alert("Не удалось отправить данные в Google Таблицу. Проверьте сеть.");
+        if(!serverResult.success) throw new Error(serverResult.error);
+        
+        // Сохраняем готовую серверную ссылку на скачивание
+        googleServerPdfUrl = serverResult.pdfUrl;
+        
+        btn.innerText = "✅ Сохранено в Реестр!";
+        document.getElementById('pdf-btn').disabled = false;
+        
+        alert('Успешно! Данные занесены в ячейку реестра, а сервер Google собрал официальный PDF-акт. Нажмите "2. Открыть готовый Акт PDF" для просмотра.');
+        
+    } catch(error) {
+        console.error("Ошибка:", error);
+        alert("Ошибка сервера при записи и сборке PDF: " + error.message);
         btn.disabled = false;
         btn.innerText = "1. Сохранить в Реестр Google 💾";
     }
 }
 
-// УЛУЧШЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ PDF ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
-async function downloadPdfOnly() {
-    const pdfBtn = document.getElementById('pdf-btn');
-    const modal = document.getElementById('pdf-preview-modal');
-    
-    pdfBtn.disabled = true;
-    pdfBtn.innerText = "⏳ Создание файла PDF...";
-    
-    const currentDateStr = new Date().toLocaleDateString('ru-RU');
-    
-    // Подготовка текстовых полей бланка
-    document.getElementById('pdf-date').textContent = currentDateStr;
-    document.getElementById('pdf-inspector').textContent = auditSession.inspector;
-    document.getElementById('pdf-object').textContent = auditSession.objectName;
-    document.getElementById('pdf-contractor').textContent = auditSession.contractor;
-    document.getElementById('pdf-violations-list').textContent = finalViolationsText;
-
-    // Включаем видимость модального окна на время рендеринга (критично для телефонов!)
-    modal.style.display = 'block';
-    const printElement = document.getElementById('pdf-printable-area');
-
-    const pdfOptions = {
-        margin: 12,
-        filename: 'Акт_ОТ_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    try {
-        // Попытка прямого скачивания файла
-        await html2pdf().set(pdfOptions).from(printElement).save();
-        
-        // Скрываем модальное окно обратно
-        modal.style.display = 'none';
-        pdfBtn.innerText = "📄 Скачать еще раз";
-        pdfBtn.disabled = false;
-        if (confirm("Акт успешно скачан! Очистить форму и вернуться на главный экран?")) {
-        location.reload();
-        }
-        } catch(pdfError) {
-        console.warn("Прямое скачивание заблокировано, включаем резервный мобильный режим...", pdfError);
-
-        try {
-        // Резервный режим: открываем PDF в новом окне браузера для ручного сохраненияconst worker = html2pdf().set(pdfOptions).from(printElement).outputPdf('bloburl');
-        worker.then(function(blobUrl) {
-        modal.style.display = 'none';
-        pdfBtn.innerText = "📄 Открыть PDF";
-        pdfBtn.disabled = false;
-        window.open(blobUrl, '_blank');
-        });
-        } catch(fallbackError) {
-        modal.style.display = 'none';
-        alert('Браузер полностью заблокировал загрузку. Пожалуйста, откройте этот сайт в обычном системном браузере (Google Chrome / Safari), а не внутри мессенджера.');
-        pdfBtn.disabled = false;
-        pdfBtn.innerText = "2. Сгенерировать и Скачать PDF 📄";
-        }
+// КНОПКА 2: Простое открытие официального, скомпилированного на сервере Google PDF-документа
+function openGoogleGeneratedPdf() {
+    if(!googleServerPdfUrl) {
+        return alert("Сначала сохраните аудит в реестр, чтобы сервер сформировал документ!");
     }
+    
+    // Переходим по безопасной, чистой ссылке Google Диска
+    window.open(googleServerPdfUrl, '_blank');
+    
+    setTimeout(() => {
+        if(confirm("Акт открыт во внешней вкладке! Желаете очистить форму и вернуться к выбору объекта?")) {
+            location.reload();
+        }
+    }, 1500);
 }
-
