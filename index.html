@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Контроль ОТиПБ</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем скрипт генерации PDF -->
+    <!-- Библиотека для PDF -->
     <script src="https://cloudflare.com"></script>
 </head>
 <body>
@@ -39,23 +39,40 @@
 
     <!-- ШАГ 2: Экран прохождения полного чек-листа -->
     <div id="step-3-checklist" style="display:none;">
-        <!-- Обертка, которая пойдет на печать в PDF -->
-        <div id="pdf-printable-area">
-            <div class="audit-header card">
-                <h3 style="margin-top:0; color:#2c3e50;">АКТ ПРОВЕРКИ ОТиПБ</h3>
-                <p>👤 <b>Инспектор:</b> <span id="audit-meta-insp"></span></p>
-                <p>🏗️ <b>Объект:</b> <span id="audit-meta-obj"></span></p>
-                <p>🚜 <b>Подрядчик:</b> <span id="audit-meta-contr"></span></p>
-                <p>📅 <b>Дата:</b> <span id="audit-meta-date"></span></p>
-            </div>
-            
-            <div id="questions-container"></div>
+        <div class="audit-header card">
+            <h3 style="margin-top:0; color:#2c3e50;">Текущий обход</h3>
+            <p>👤 <b>Инспектор:</b> <span id="audit-meta-insp"></span></p>
+            <p>🏗️ <b>Объект:</b> <span id="audit-meta-obj"></span></p>
+            <p>🚜 <b>Подрядчик:</b> <span id="audit-meta-contr"></span></p>
+            <p>📅 <b>Дата:</b> <span id="audit-meta-date"></span></p>
         </div>
+        
+        <!-- Лента вопросов для инспектора -->
+        <div id="questions-container"></div>
         
         <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
             <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">Сохранить в Реестр и Скачать PDF 📄</button>
             <button onclick="backToStep1()" class="btn btn-secondary">← Назад к выбору объекта</button>
         </div>
+    </div>
+</div>
+
+<!-- СКРЫТЫЙ КОНТЕЙНЕР ДЛЯ ИДЕАЛЬНОЙ ГЕНЕРАЦИИ PDF (Браузер его не видит, но библиотека использует как макет) -->
+<div id="pdf-hidden-template" style="position: absolute; left: -9999px; top: -9999px; width: 190mm; font-family: Arial, sans-serif; color: #000; background: #fff; padding: 10px;">
+    <div style="border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #2c3e50; font-size: 20px; text-align: center;">АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ</h2>
+        <table style="width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 14px;">
+            <tr><td style="padding: 4px 0; width: 35%;"><b>Дата проверки:</b></td><td id="pdf-date" style="padding: 4px 0;"></td></tr>
+            <tr><td style="padding: 4px 0;"><b>Выполнил проверку:</b></td><td id="pdf-inspector" style="padding: 4px 0;"></td></tr>
+            <tr><td style="padding: 4px 0;"><b>Объект контроля:</b></td><td id="pdf-object" style="padding: 4px 0;"></td></tr>
+            <tr><td style="padding: 4px 0;"><b>Подрядная организация:</b></td><td id="pdf-contractor" style="padding: 4px 0;"></td></tr>
+        </table>
+    </div>
+    <h3 style="font-size: 16px; color: #2c3e50; margin-bottom: 10px;">Результаты инспекции и выявленные нарушения:</h3>
+    <div id="pdf-violations-list" style="font-size: 14px; line-height: 1.5; white-space: pre-wrap;"></div>
+    <div style="margin-top: 50px; border-top: 1px solid #ddd; padding-top: 20px; display: flex; justify-content: space-between; font-size: 14px;">
+        <div>Подпись проверяющего: _____________________</div>
+        <div>Подпись представителя подрядчика: _____________________</div>
     </div>
 </div>
 
