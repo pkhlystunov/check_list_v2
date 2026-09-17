@@ -15,10 +15,10 @@
         .audit-header p { margin: 6px 0; }
         label { display: block; margin-top: 15px; margin-bottom: 4px; font-weight: 600; color: #444; }
         input[type="text"], select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--gray); border-radius: 6px; box-sizing: border-box; font-size: 15px; background: #fff; }
-        .btn { padding: 12px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; transition: opacity 0.15s; text-align: center; }
+        .btn { padding: 12px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; transition: opacity 0.15s; text-align: center; width: 100%; box-sizing: border-box;}
         .btn:hover { opacity: 0.95; }
         .btn:disabled { background: var(--gray) !important; cursor: not-allowed; }
-        .btn-success { background: var(--success); color: white; margin-right: 8px; }
+        .btn-success { background: var(--success); color: white; margin-bottom: 8px; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: var(--secondary); color: white; }
@@ -27,6 +27,7 @@
         .normative-text { font-size: 13px; color: #555; margin-top: 10px; background: #f8f9f9; padding: 10px; border-radius: 5px; border-left: 3px solid #3498db; }
         .loading-overlay { text-align: center; font-style: italic; color: #666; padding: 30px 10px; font-size: 15px; }
         .meta-info { font-size: 13px; color: var(--secondary); text-align: center; margin-top: -8px; margin-bottom: 15px; }
+        .error-log { background: #fadbd8; border: 1px solid var(--danger); color: #78281f; padding: 15px; border-radius: 6px; margin-top: 15px; display: none; font-family: monospace; white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -36,7 +37,7 @@
     
     <!-- ШАГ 1: Ввод инспектора, Объекта и Подрядчика -->
     <div id="step-1-form" class="card primary-border">
-        <div class="loading-overlay" id="setup-loading">Синхронизация с реестрами Google Таблиц...</div>
+        <div class="loading-overlay" id="setup-loading">⏳ Подключение к реестрам Google Таблиц...</div>
         
         <div id="form-fields-wrapper" style="display:none;">
             <label for="inspector"><b>ФИО Проверяющего сотрудника:</b></label>
@@ -48,8 +49,11 @@
             <label for="contractor-select"><b>Подрядная организация (Лист 2_Подрядчики):</b></label>
             <select id="contractor-select"><option value="">-- Выберите подрядчика --</option></select>
             
-            <button onclick="goToStep2()" class="btn btn-primary" style="margin-top: 15px; width: 100%;">Далее к выбору чек-листа →</button>
+            <button onclick="goToStep2()" class="btn btn-primary" style="margin-top: 15px;">Далее к выбору чек-листа →</button>
         </div>
+        
+        <!-- Блок вывода ошибок при сбоях сети -->
+        <div id="error-display" class="error-log"></div>
     </div>
 
     <!-- ШАГ 2: Выбор Раздела из 3_Чек_лист -->
@@ -58,11 +62,11 @@
         <p class="meta-info">Объект: <span id="meta-obj"></span> | Подрядчик: <span id="meta-contr"></span></p>
         
         <label for="category-select"><b>Выберите направление проверки (Лист 3_Чек_лист):</b></label>
-        <select id="category-select"><option value="">-- Загрузить все вопросы --</option></select>
+        <select id="category-select"><option value="Все разделы">-- Загрузить все вопросы --</option></select>
         
-        <div style="margin-top: 25px; display: flex; gap: 10px;">
+        <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="startAudit()" class="btn btn-primary">Начать аудит 🚀</button>
             <button onclick="backToStep1()" class="btn btn-secondary">← Назад</button>
-            <button onclick="startAudit()" class="btn btn-primary" style="flex: 1;">Начать аудит 🚀</button>
         </div>
     </div>
 
@@ -77,24 +81,45 @@
         
         <div id="questions-container"></div>
         
-        <div style="margin-top: 25px; display: flex; gap: 10px;">
+        <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">Сохранить аудит в Google Таблицу</button>
             <button onclick="backToStep2()" class="btn btn-secondary">Изменить раздел</button>
-            <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60; flex: 1;">Сохранить аудит в Google Таблицу</button>
         </div>
     </div>
 </div>
 
 <script>
-    // ⚠️ СЮДА ВСТАВЬТЕ ССЫЛКУ ИЗ GOOGLE APPS SCRIPT (ПОЛУЧЕННУЮ ПОСЛЕ ДЕПЛОЯ)
-    const API_URL = "https://script.google.com/macros/s/AKfycbyORtZmorZYzqnPia9Gr3bSRRtvGcJFJvIekFem1boYjkq03H9gmrKEi4YBVqYJdx28/exec"; 
+    // ⚠️ ВСТАВЬТЕ СЮДА ВАШ СВЕЖИЙ URL ПОСЛЕ ПЕРЕДЕПЛОЯ ИЗ ШАГА 1
+    const API_URL = "https://script.google.com/macros/s/AKfycbz2etXhD_o2AxHQtlaxnlv4fxb8PzBWi9qt9cUzxrBKkMjczHHuIg2B6KAeRpZiS7AP/exec"; 
     
     let auditSession = { inspector: '', objectName: '', contractor: '', category: '', results: [] };
 
     document.addEventListener("DOMContentLoaded", async function() {
+        const errorDiv = document.getElementById('error-display');
+        const loadingEl = document.getElementById('setup-loading');
+        
+        // Предохранитель зависания: если за 10 секунд Google не ответит, принудительно выводим ошибку
+        const timeoutId = setTimeout(() => {
+            if (loadingEl.style.display !== 'none') {
+                loadingEl.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `<b>🔴 Превышено время ожидания ответа сервера (Timeout 10s)</b>\n\nGoogle Таблица слишком долго отвечает. Пожалуйста, вернитесь в Apps Script, нажмите <b>Развернуть -> Управление развертываниями</b>, удалите старые деплои и создайте <b>Новое развертывание</b> с правами доступа "Все (Anyone)".`;
+            }
+        }, 10000);
+
         try {
             const response = await fetch(`${API_URL}?action=getSetupData`, { method: "GET", redirect: "follow" });
-            const res = await response.json();
-            if (!res.success) throw new Error(res.error);
+            clearTimeout(timeoutId);
+            
+            const rawText = await response.text();
+            
+            // Если вместо JSON пришла страница авторизации Google
+            if (rawText.includes("Google Accounts") || rawText.includes("Sign in")) {
+                throw new Error("Доступ заблокирован защитой Google. Макрос требует войти в аккаунт. Перевыпустите деплой скрипта строго по инструкции для 'Anyone' (Все).");
+            }
+            
+            const res = JSON.parse(rawText);
+            if (!res.success) throw new Error(res.error || "Неизвестная ошибка на стороне макроса");
             
             const objectSelect = document.getElementById('object-select');
             res.objects.forEach(obj => {
@@ -117,10 +142,13 @@
                 categorySelect.appendChild(opt);
             });
             
-            document.getElementById('setup-loading').style.display = 'none';
+            loadingEl.style.display = 'none';
             document.getElementById('form-fields-wrapper').style.display = 'block';
         } catch (error) {
-            document.getElementById('setup-loading').innerHTML = `<span style="color:var(--danger)"><b>Ошибка подключения к API:</b><br>${error.message}<br><br>Проверьте права деплоя (Должно быть выставлено "Anyone").</span>`;
+            clearTimeout(timeoutId);
+            loadingEl.style.display = 'none';
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `<b>❌ Ошибка инициализации API:</b>\n${error.message}\n\n<b>Как исправить:</b>\nУбедитесь, что вы скопировали ссылку из окна деплоя, а не из адресной строки браузера при редактировании скрипта. Ссылка должна содержать подстроку <code>/macros/s/.../exec</code>.`;
         }
     });
 
@@ -134,36 +162,3 @@
         document.getElementById('meta-obj').textContent = obj;
         document.getElementById('meta-contr').textContent = contr;
         document.getElementById('step-1-form').style.display = 'none';
-        document.getElementById('step-2-form').style.display = 'block';
-    }
-
-    function backToStep1() { document.getElementById('step-2-form').style.display = 'none'; document.getElementById('step-1-form').style.display = 'block'; }
-    function backToStep2() { document.getElementById('step-3-checklist').style.display = 'none'; document.getElementById('step-2-form').style.display = 'block'; }
-
-    async function startAudit() {
-        const selectedCat = document.getElementById('category-select').value;
-        auditSession.category = selectedCat || "Все разделы";
-        auditSession.results = [];
-        document.getElementById('step-2-form').style.display = 'none';
-        
-        const container = document.getElementById('questions-container');
-        container.innerHTML = "<div class='loading-overlay'>Загрузка вопросов чек-листа...</div>";
-        document.getElementById('step-3-checklist').style.display = 'block';
-        
-        document.getElementById('audit-meta-insp').textContent = auditSession.inspector;
-        document.getElementById('audit-meta-obj').textContent = auditSession.objectName;
-        document.getElementById('audit-meta-contr').textContent = auditSession.contractor;
-        document.getElementById('audit-meta-cat').textContent = auditSession.category;
-
-        try {
-            let url = `${API_URL}?action=getChecklist`;
-            if(selectedCat) url += `&category=${encodeURIComponent(selectedCat)}`;
-            
-            const response = await fetch(url, { method: "GET", redirect: "follow" });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.error);
-            
-            container.innerHTML = "";
-            if(result.data.length === 0) { container.innerHTML = "<p class='loading-overlay'>В этом разделе нет вопросов.</p>"; return; }
-            
-            result.data.forEach(q => {
