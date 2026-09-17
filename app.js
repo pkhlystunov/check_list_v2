@@ -8,7 +8,6 @@ let auditSession = {
     results: [] 
 };
 
-// Хранилище сгенерированного текста нарушений для PDF
 let finalViolationsText = "";
 
 document.addEventListener("DOMContentLoaded", async function() {
@@ -63,7 +62,6 @@ async function startFullAudit() {
     auditSession.results = [];
     finalViolationsText = "";
     
-    // Блокируем кнопку PDF до момента сохранения в базу
     document.getElementById('pdf-btn').disabled = true;
     document.getElementById('submit-btn').disabled = false;
     document.getElementById('submit-btn').innerText = "1. Сохранить в Реестр Google 💾";
@@ -156,14 +154,12 @@ function setQuestionResult(id, status, questionText, categoryName, normativeText
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 }
 
-// КНОПКА 1: Только сохранение данных в Google
 async function submitAuditOnly() {
     if (auditSession.results.length === 0) {
         return alert("Вы не провели оценку ни одного критерия из чек-листа!");
     }
 
     const violations = [];
-    
     auditSession.results.forEach(item => {
         if (item.status === 'Нарушение') {
             const inp = document.getElementById('comment-' + item.id);
@@ -188,65 +184,80 @@ async function submitAuditOnly() {
     btn.innerText = "⏳ Сохранение в таблицу...";
 
     try {
-        const response = await fetch(API_URL, {
+        await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify(auditSession),
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         
-        await response.text();
-        
-        btn.innerText = "✅ Данные отправлены в Google!";
-        // Переводим фокус на вторую кнопку и разблокируем её
+        btn.innerText = "✅ Данные в Google отправлены!";
         document.getElementById('pdf-btn').disabled = false;
-        alert('Данные успешно сохранены во вкладку "7_Реестр_Проверок"! Теперь вы можете скачать файл, нажав на кнопку "2. Скачать Акт в PDF".');
+        alert('Успешно внесено во вкладку "7_Реестр_Проверок"! Нажмите вторую кнопку для скачивания PDF.');
         
     } catch(googleError) {
-        console.error("Ошибка сохранения:", googleError);
-        alert("Не удалось отправить данные в Google Таблицу. Проверьте подключение к сети.");
+        alert("Не удалось отправить данные в Google Таблицу. Проверьте сеть.");
         btn.disabled = false;
         btn.innerText = "1. Сохранить в Реестр Google 💾";
     }
 }
 
-// КНОПКА 2: Только локальное скачивание сформированного PDF
+// УЛУЧШЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ PDF ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
 async function downloadPdfOnly() {
     const pdfBtn = document.getElementById('pdf-btn');
+    const modal = document.getElementById('pdf-preview-modal');
+    
     pdfBtn.disabled = true;
     pdfBtn.innerText = "⏳ Создание файла PDF...";
     
+    const currentDateStr = new Date().toLocaleDateString('ru-RU');
+    
+    // Подготовка текстовых полей бланка
+    document.getElementById('pdf-date').textContent = currentDateStr;
+    document.getElementById('pdf-inspector').textContent = auditSession.inspector;
+    document.getElementById('pdf-object').textContent = auditSession.objectName;
+    document.getElementById('pdf-contractor').textContent = auditSession.contractor;
+    document.getElementById('pdf-violations-list').textContent = finalViolationsText;
+
+    // Включаем видимость модального окна на время рендеринга (критично для телефонов!)
+    modal.style.display = 'block';
+    const printElement = document.getElementById('pdf-printable-area');
+
+    const pdfOptions = {
+        margin: 12,
+        filename: 'Акт_ОТ_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
     try {
-        const currentDateStr = new Date().toLocaleDateString('ru-RU');
-        
-        // Наполняем изолированный скрытый макет актуальными текстами
-        document.getElementById('pdf-date').textContent = currentDateStr;
-        document.getElementById('pdf-inspector').textContent = auditSession.inspector;
-        document.getElementById('pdf-object').textContent = auditSession.objectName;
-        document.getElementById('pdf-contractor').textContent = auditSession.contractor;
-        document.getElementById('pdf-violations-list').textContent = finalViolationsText;
-
-        const printElement = document.getElementById('pdf-hidden-template');
-
-        const pdfOptions = {
-            margin: 15,
-            filename: 'Акт_ОТ_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        // Запускаем сборку и скачивание акта
+        // Попытка прямого скачивания файла
         await html2pdf().set(pdfOptions).from(printElement).save();
+        
+        // Скрываем модальное окно обратно
+        modal.style.display = 'none';
         pdfBtn.innerText = "📄 Скачать еще раз";
         pdfBtn.disabled = false;
-        // Спрашиваем инспектора о завершении сессии
-        if (confirm("Акт успешно скачан! Очистить форму и вернуться на главный экран для новой проверки?")) {
-            location.reload();
+        if (confirm("Акт успешно скачан! Очистить форму и вернуться на главный экран?")) {
+        location.reload();
         }
         } catch(pdfError) {
-        console.error("Ошибка PDF:", pdfError);
-        alert('Не удалось запустить скачивание файла. Проверьте разрешения браузера на загрузку документов.');
+        console.warn("Прямое скачивание заблокировано, включаем резервный мобильный режим...", pdfError);
+
+        try {
+        // Резервный режим: открываем PDF в новом окне браузера для ручного сохраненияconst worker = html2pdf().set(pdfOptions).from(printElement).outputPdf('bloburl');
+        worker.then(function(blobUrl) {
+        modal.style.display = 'none';
+        pdfBtn.innerText = "📄 Открыть PDF";
         pdfBtn.disabled = false;
-        pdfBtn.innerText = "2. Скачать Акт в PDF 📄";
+        window.open(blobUrl, '_blank');
+        });
+        } catch(fallbackError) {
+        modal.style.display = 'none';
+        alert('Браузер полностью заблокировал загрузку. Пожалуйста, откройте этот сайт в обычном системном браузере (Google Chrome / Safari), а не внутри мессенджера.');
+        pdfBtn.disabled = false;
+        pdfBtn.innerText = "2. Сгенерировать и Скачать PDF 📄";
+        }
     }
 }
+
