@@ -5,7 +5,6 @@ let auditSession = {
     inspector: '', 
     objectName: '', 
     contractor: '', 
-    category: '', 
     results: [] 
 };
 
@@ -28,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         const rawText = await response.text();
         
         if (rawText.includes("Google Accounts") || rawText.includes("Sign in")) {
-            throw new Error("Защита Google заблокировала анонимый доступ.");
+            throw new Error("Защита Google заблокировала анонимный доступ.");
         }
         
         const res = JSON.parse(rawText);
@@ -36,23 +35,18 @@ document.addEventListener("DOMContentLoaded", async function() {
             throw new Error(res.error || "Ошибка макроса");
         }
         
+        // 1. Заполняем Объекты (Колонка B - полное название)
         const objectSelect = document.getElementById('object-select');
         res.objects.forEach(obj => {
-            const textValue = obj.id + " | " + obj.name;
-            const optionItem = new Option(textValue, obj.name);
+            const optionItem = new Option(obj.name, obj.name);
             objectSelect.add(optionItem);
         });
         
+        // 2. Заполняем Подрядчиков (Колонка B)
         const contractorSelect = document.getElementById('contractor-select');
         res.contractors.forEach(contr => {
             const optionItem = new Option(contr, contr);
             contractorSelect.add(optionItem);
-        });
-        
-        const categorySelect = document.getElementById('category-select');
-        res.categories.forEach(cat => {
-            const optionItem = new Option(cat, cat);
-            categorySelect.add(optionItem);
         });
         
         loadingEl.style.display = 'none';
@@ -65,64 +59,48 @@ document.addEventListener("DOMContentLoaded", async function() {
     }
 });
 
-function goToStep2() {
+function backToStep1() { 
+    document.getElementById('step-3-checklist').style.display = 'none'; 
+    document.getElementById('step-1-form').style.display = 'block'; 
+}
+
+async function startFullAudit() {
     const insp = document.getElementById('inspector').value.trim();
     const obj = document.getElementById('object-select').value;
     const contr = document.getElementById('contractor-select').value;
+    
     if(!insp || !obj || !contr) {
-        return alert("Заполните все три поля формы первого шага!");
+        return alert("Заполните ФИО и выберите Объект и Подрядчика!");
     }
     
     auditSession.inspector = insp; 
     auditSession.objectName = obj; 
     auditSession.contractor = contr;
-    
-    document.getElementById('meta-obj').textContent = obj;
-    document.getElementById('meta-contr').textContent = contr;
-    document.getElementById('step-1-form').style.display = 'none';
-    document.getElementById('step-2-form').style.display = 'block';
-}
-
-function backToStep1() { 
-    document.getElementById('step-2-form').style.display = 'none'; 
-    document.getElementById('step-1-form').style.display = 'block'; 
-}
-
-function backToStep2() { 
-    document.getElementById('step-3-checklist').style.display = 'none'; 
-    document.getElementById('step-2-form').style.display = 'block'; 
-}
-
-async function startAudit() {
-    const selectedCat = document.getElementById('category-select').value;
-    auditSession.category = selectedCat || "Все разделы";
     auditSession.results = [];
-    document.getElementById('step-2-form').style.display = 'none';
+    
+    document.getElementById('step-1-form').style.display = 'none';
     
     const container = document.getElementById('questions-container');
-    container.innerHTML = "⏳ Загрузка вопросов чек-листа...";
+    container.innerHTML = "<div class='loading-overlay'>⏳ Загрузка полного чек-листа требований безопасности...</div>";
     document.getElementById('step-3-checklist').style.display = 'block';
     
     document.getElementById('audit-meta-insp').textContent = auditSession.inspector;
     document.getElementById('audit-meta-obj').textContent = auditSession.objectName;
     document.getElementById('audit-meta-contr').textContent = auditSession.contractor;
-    document.getElementById('audit-meta-cat').textContent = auditSession.category;
 
     try {
+        // Запрашиваем ВСЕ вопросы разом (без фильтрации по категориям)
         let url = API_URL + "?action=getChecklist";
-        if(selectedCat && selectedCat !== "Все разделы") {
-            url += "&category=" + encodeURIComponent(selectedCat);
-        }
-        
         const response = await fetch(url, { method: "GET", redirect: "follow" });
         const result = await response.json();
+        
         if (!result.success) {
             throw new Error(result.error);
         }
         
         container.innerHTML = "";
         if(result.data.length === 0) { 
-            container.innerHTML = "В выбранном направлении нет доступных критериев."; 
+            container.innerHTML = "<p class='loading-overlay'>В таблице '3_Чек_лист' не обнаружено вопросов.</p>"; 
             return; 
         }
         
@@ -131,11 +109,13 @@ async function startAudit() {
             card.className = 'card';
             card.id = 'q-box-' + q.id;
             
+            // Раздел (Категория из колонки А)
             const badge = document.createElement('div');
             badge.className = 'badge';
             badge.textContent = q.category;
             card.appendChild(badge);
             
+            // Критерий проверки (Текст из колонки B)
             const txt = document.createElement('p');
             txt.style.margin = '5px 0 12px 0';
             txt.style.fontSize = '16px';
@@ -143,6 +123,7 @@ async function startAudit() {
             txt.textContent = q.question;
             card.appendChild(txt);
             
+            // Норматив (Если заполнен в колонке C)
             if (q.normative) {
                 const norm = document.createElement('div');
                 norm.className = 'normative-text';
@@ -153,6 +134,7 @@ async function startAudit() {
                 card.appendChild(norm);
             }
             
+            // Ряд с кнопками выбора соответствия
             const btnRow = document.createElement('div');
             btnRow.className = 'btn-row';
             
@@ -161,7 +143,7 @@ async function startAudit() {
             btnOk.className = 'btn btn-success';
             btnOk.textContent = 'Соответствует';
             btnOk.onclick = function() { 
-                setQuestionResult(q.id, 'Соответствует', q.question); 
+                setQuestionResult(q.id, 'Соответствует', q.question, q.category); 
             };
             
             const btnFail = document.createElement('button');
@@ -169,31 +151,38 @@ async function startAudit() {
             btnFail.className = 'btn btn-danger';
             btnFail.textContent = 'Нарушение';
             btnFail.onclick = function() { 
-                setQuestionResult(q.id, 'Нарушение', q.question); 
+                setQuestionResult(q.id, 'Нарушение', q.question, q.category); 
             };
             
             btnRow.appendChild(btnOk);
             btnRow.appendChild(btnFail);
             card.appendChild(btnRow);
             
+            // Поле для ввода списка нарушений/комментария
             const inp = document.createElement('input');
             inp.type = 'text';
             inp.id = 'comment-' + q.id;
             inp.className = 'comment-box';
-            inp.placeholder = 'Опишите детали нарушения...';
+            inp.placeholder = 'Опишите список нарушений и дефектов...';
             card.appendChild(inp);
             
             container.appendChild(card);
         });
     } catch(error) {
-        container.innerHTML = "Ошибка загрузки вопросов: " + error.message;
+        container.innerHTML = "<div class='card' style='border-left-color:var(--danger); color:var(--danger);'><b>Ошибка загрузки вопросов:</b><br>" + error.message + "</div>";
     }
 }
 
-function setQuestionResult(id, status, questionText) {
+function setQuestionResult(id, status, questionText, categoryName) {
     let item = auditSession.results.find(r => r.id === id);
     if (!item) {
-        item = { id: id, question: questionText, status: status, comment: '' };
+        item = { 
+            id: id, 
+            question: questionText, 
+            category: categoryName, 
+            status: status, 
+            comment: '' 
+        };
         auditSession.results.push(item);
     } else { 
         item.status = status; 
@@ -208,9 +197,10 @@ function setQuestionResult(id, status, questionText) {
 
 async function submitAudit() {
     if (auditSession.results.length === 0) {
-        return alert("Вы не ответили ни на один пункт чек-листа!");
+        return alert("Вы не провели оценку ни одного критерия из чек-листа!");
     }
     
+    // Переносим текст нарушений из полей ввода в итоговый пакет данных
     auditSession.results.forEach(item => {
         const inp = document.getElementById('comment-' + item.id);
         if(inp) {
@@ -220,7 +210,7 @@ async function submitAudit() {
     
     const btn = document.getElementById('submit-btn');
     btn.disabled = true; 
-    btn.innerText = "Идет выгрузка данных...";
+    btn.innerText = "Идет выгрузка результатов обхода...";
     
     try {
         await fetch(API_URL, {
@@ -228,10 +218,10 @@ async function submitAudit() {
             body: JSON.stringify(auditSession),
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        alert('Успешно сохранено во вкладку 7_Реестр_Проверок!');
+        alert('Успешно сохранено! Результаты проверки внесены в реестр таблицы.');
         location.reload();
     } catch(error) {
-        alert("Ошибка отправки. Подробнее в консоли F12.");
+        alert("Ошибка отправки данных. Подробнее в консоли разработчика F12.");
         btn.disabled = false; 
         btn.innerText = "Сохранить аудит в Google Таблицу";
     }
