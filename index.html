@@ -4,38 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Контроль ОТиПБ</title>
-    <style>
-        :root { --primary: #2c3e50; --success: #2ecc71; --danger: #e74c3c; --secondary: #7f8c8d; --gray: #bdc3c7; --bg: #ecf0f1; }
-        body { font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; background: var(--bg); color: #333; padding: 20px; margin: 0; }
-        .container { max-width: 650px; margin: 0 auto; }
-        h2, h3 { text-align: center; color: var(--primary); }
-        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 6px solid var(--gray); position: relative; }
-        .primary-border { border-left-color: var(--primary); }
-        .audit-header { border-left-color: #2980b9; background: #eaf2f8; font-size: 14px; }
-        .audit-header p { margin: 6px 0; }
-        label { display: block; margin-top: 15px; margin-bottom: 4px; font-weight: 600; color: #444; }
-        input[type="text"], select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--gray); border-radius: 6px; box-sizing: border-box; font-size: 15px; background: #fff; }
-        .btn { padding: 12px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; transition: opacity 0.15s; text-align: center; width: 100%; box-sizing: border-box;}
-        .btn:hover { opacity: 0.95; }
-        .btn:disabled { background: var(--gray) !important; cursor: not-allowed; }
-        .btn-success { background: var(--success); color: white; margin-bottom: 8px; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-secondary { background: var(--secondary); color: white; }
-        .comment-box { display: none; margin-top: 12px; border-color: var(--danger); background: #fdf2f2; }
-        .badge { display: inline-block; background: #ebf5fb; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #2980b9; text-transform: uppercase; }
-        .normative-text { font-size: 13px; color: #555; margin-top: 10px; background: #f8f9f9; padding: 10px; border-radius: 5px; border-left: 3px solid #3498db; }
-        .loading-overlay { text-align: center; font-style: italic; color: #666; padding: 30px 10px; font-size: 15px; }
-        .meta-info { font-size: 13px; color: var(--secondary); text-align: center; margin-top: -8px; margin-bottom: 15px; }
-        .error-log { background: #fadbd8; border: 1px solid var(--danger); color: #78281f; padding: 15px; border-radius: 6px; margin-top: 15px; display: none; font-family: monospace; white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="container">
     <h2>📋 Контроль Охраны Труда и ПБ</h2>
     
-    <!-- ШАГ 1: Ввод инспектора, Объекта и Подрядчика -->
+    <!-- ШАГ 1: Ввод инспектора, выбор Объекта и Подрядчика -->
     <div id="step-1-form" class="card primary-border">
         <div class="loading-overlay" id="setup-loading">⏳ Подключение к реестрам Google Таблиц...</div>
         
@@ -44,15 +20,18 @@
             <input type="text" id="inspector" placeholder="Например, Хлыстунов П.А.">
             
             <label for="object-select"><b>Объект строительства (Лист 1_Объекты):</b></label>
-            <select id="object-select"><option value="">-- Выберите объект --</option></select>
+            <select id="object-select">
+                <option value="">-- Выберите объект --</option>
+            </select>
             
             <label for="contractor-select"><b>Подрядная организация (Лист 2_Подрядчики):</b></label>
-            <select id="contractor-select"><option value="">-- Выберите подрядчика --</option></select>
+            <select id="contractor-select">
+                <option value="">-- Выберите подрядчика --</option>
+            </select>
             
             <button onclick="goToStep2()" class="btn btn-primary" style="margin-top: 15px;">Далее к выбору чек-листа →</button>
         </div>
         
-        <!-- Блок вывода ошибок при сбоях сети -->
         <div id="error-display" class="error-log"></div>
     </div>
 
@@ -62,7 +41,9 @@
         <p class="meta-info">Объект: <span id="meta-obj"></span> | Подрядчик: <span id="meta-contr"></span></p>
         
         <label for="category-select"><b>Выберите направление проверки (Лист 3_Чек_лист):</b></label>
-        <select id="category-select"><option value="Все разделы">-- Загрузить все вопросы --</option></select>
+        <select id="category-select">
+            <option value="Все разделы">-- Загрузить все вопросы --</option>
+        </select>
         
         <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
             <button onclick="startAudit()" class="btn btn-primary">Начать аудит 🚀</button>
@@ -88,78 +69,6 @@
     </div>
 </div>
 
-<script>
-    // ⚠️ ВСТАВЬТЕ СЮДА ВАШ СВЕЖИЙ URL ПОСЛЕ ПЕРЕДЕПЛОЯ ИЗ ШАГА 1
-    const API_URL = "https://script.google.com/macros/s/AKfycbz2etXhD_o2AxHQtlaxnlv4fxb8PzBWi9qt9cUzxrBKkMjczHHuIg2B6KAeRpZiS7AP/exec"; 
-    
-    let auditSession = { inspector: '', objectName: '', contractor: '', category: '', results: [] };
-
-    document.addEventListener("DOMContentLoaded", async function() {
-        const errorDiv = document.getElementById('error-display');
-        const loadingEl = document.getElementById('setup-loading');
-        
-        // Предохранитель зависания: если за 10 секунд Google не ответит, принудительно выводим ошибку
-        const timeoutId = setTimeout(() => {
-            if (loadingEl.style.display !== 'none') {
-                loadingEl.style.display = 'none';
-                errorDiv.style.display = 'block';
-                errorDiv.innerHTML = `<b>🔴 Превышено время ожидания ответа сервера (Timeout 10s)</b>\n\nGoogle Таблица слишком долго отвечает. Пожалуйста, вернитесь в Apps Script, нажмите <b>Развернуть -> Управление развертываниями</b>, удалите старые деплои и создайте <b>Новое развертывание</b> с правами доступа "Все (Anyone)".`;
-            }
-        }, 10000);
-
-        try {
-            const response = await fetch(`${API_URL}?action=getSetupData`, { method: "GET", redirect: "follow" });
-            clearTimeout(timeoutId);
-            
-            const rawText = await response.text();
-            
-            // Если вместо JSON пришла страница авторизации Google
-            if (rawText.includes("Google Accounts") || rawText.includes("Sign in")) {
-                throw new Error("Доступ заблокирован защитой Google. Макрос требует войти в аккаунт. Перевыпустите деплой скрипта строго по инструкции для 'Anyone' (Все).");
-            }
-            
-            const res = JSON.parse(rawText);
-            if (!res.success) throw new Error(res.error || "Неизвестная ошибка на стороне макроса");
-            
-            const objectSelect = document.getElementById('object-select');
-            res.objects.forEach(obj => {
-                const opt = document.createElement('option');
-                opt.value = obj.name; opt.textContent = `${obj.id} | ${obj.name}`;
-                objectSelect.appendChild(opt);
-            });
-            
-            const contractorSelect = document.getElementById('contractor-select');
-            res.contractors.forEach(contr => {
-                const opt = document.createElement('option');
-                opt.value = contr; opt.textContent = contr;
-                contractorSelect.appendChild(opt);
-            });
-            
-            const categorySelect = document.getElementById('category-select');
-            res.categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat; opt.textContent = cat;
-                categorySelect.appendChild(opt);
-            });
-            
-            loadingEl.style.display = 'none';
-            document.getElementById('form-fields-wrapper').style.display = 'block';
-        } catch (error) {
-            clearTimeout(timeoutId);
-            loadingEl.style.display = 'none';
-            errorDiv.style.display = 'block';
-            errorDiv.innerHTML = `<b>❌ Ошибка инициализации API:</b>\n${error.message}\n\n<b>Как исправить:</b>\nУбедитесь, что вы скопировали ссылку из окна деплоя, а не из адресной строки браузера при редактировании скрипта. Ссылка должна содержать подстроку <code>/macros/s/.../exec</code>.`;
-        }
-    });
-
-    function goToStep2() {
-        const insp = document.getElementById('inspector').value.trim();
-        const obj = document.getElementById('object-select').value;
-        const contr = document.getElementById('contractor-select').value;
-        if(!insp || !obj || !contr) return alert("Заполните ФИО и выберите Объект и Подрядчика!");
-        
-        auditSession.inspector = insp; auditSession.objectName = obj; auditSession.contractor = contr;
-        document.getElementById('meta-obj').textContent = obj;
-        document.getElementById('meta-contr').textContent = contr;
-        document.getElementById('step-1-form').style.display = 'none';
-        document.getElementById('step-2-form').style.display = 'block';}function backToStep1() { document.getElementById('step-2-form').style.display = 'none'; document.getElementById('step-1-form').style.display = 'block'; }function backToStep2() { document.getElementById('step-3-checklist').style.display = 'none'; document.getElementById('step-2-form').style.display = 'block'; }async function startAudit() {const selectedCat = document.getElementById('category-select').value;auditSession.category = selectedCat || "Все разделы";auditSession.results = [];document.getElementById('step-2-form').style.display = 'none';const container = document.getElementById('questions-container');container.innerHTML = "⏳ Загрузка вопросов чек-листа из '3_Чек_лист'...";document.getElementById('step-3-checklist').style.display = 'block';document.getElementById('audit-meta-insp').textContent = auditSession.inspector;document.getElementById('audit-meta-obj').textContent = auditSession.objectName;document.getElementById('audit-meta-contr').textContent = auditSession.contractor;document.getElementById('audit-meta-cat').textContent = auditSession.category;try {let url = ${API_URL}?action=getChecklist;if(selectedCat && selectedCat !== "Все разделы") url += &category=${encodeURIComponent(selectedCat)};const response = await fetch(url, { method: "GET", redirect: "follow" });const result = await response.json();if (!result.success) throw new Error(result.error);container.innerHTML = "";if(result.data.length === 0) { container.innerHTML = "В этом разделе нет вопросов."; return; }result.data.forEach(q => {const sq = escapeHtml(q.question); const sc = escapeHtml(q.category);container.innerHTML += <div class="card" id="q-box-${q.id}"> <div class="badge">${sc}</div> <p style="margin: 5px 0 12px 0; font-size: 16px; line-height: 1.4;">${sq}</p> \${q.normative ?Норматив: ${escapeHtml(q.normative)} : ''} <div style="margin-top:15px; display:flex; gap:10px;"> <button type="button" class="btn btn-success" onclick="setQuestionResult(${q.id}, 'Соответствует', '${sq}')">Соответствует</button> <button type="button" class="btn btn-danger" onclick="setQuestionResult(${q.id}, 'Нарушение', '${sq}')">Нарушение</button> </div> <input type="text" id="comment-${q.id}" class="comment-box" placeholder="Опишите дефекты или сроки нарушения..."> </div>;});} catch(error) {container.innerHTML = <div class='card' style='border-left-color:var(--danger); color:var(--danger);'><b>Ошибка загрузки вопросов:</b><br>${error.message}</div>;}}function setQuestionResult(id, status, questionText) {let item = auditSession.results.find(r => r.id === id);if (!item) {item = { id: id, question: questionText, status: status, comment: '' };auditSession.results.push(item);} else { item.status = status; }const comp = document.getElementById(comment-${id});if (comp) comp.style.display = status === 'Нарушение' ? 'block' : 'none';document.getElementById(q-box-${id}).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';}async function submitAudit() {if (auditSession.results.length === 0) return alert("Вы не ответили ни на один вопрос!");auditSession.results.forEach(item => {const inp = document.getElementById(comment-${item.id});if(inp) item.comment = inp.value.trim();});const btn = document.getElementById('submit-btn');btn.disabled = true; btn.innerText = "Запись в Google Таблицу...";try {await fetch(API_URL, {method: 'POST',body: JSON.stringify(auditSession),headers: { 'Content-Type': 'text/plain;charset=utf-8' }});alert('Данные успешно сохранены во вкладку "7_Реестр_Проверок"!');location.reload();} catch(error) {alert("Ошибка отправки. Подробнее в консоли F12.");btn.disabled = false; btn.innerText = "Сохранить аудит в Google Таблицу";}}function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'"); }
+<script src="app.js"></script>
+</body>
+</html>
