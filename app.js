@@ -154,7 +154,6 @@ function setQuestionResult(id, status, questionText, categoryName, normativeText
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 }
 
-// КНОПКА 1: Сохранение нарушений одной строкой в реестр
 async function submitAuditOnly() {
     if (auditSession.results.length === 0) {
         return alert("Вы не провели оценку ни одного критерия из чек-листа!");
@@ -193,7 +192,7 @@ async function submitAuditOnly() {
         
         btn.innerText = "✅ Данные сохранены!";
         document.getElementById('pdf-btn').disabled = false;
-        alert('Данные внесены в лист "7_Реестр_Проверок"! Нажмите вторую кнопку для вывода Акта на печать.');
+        alert('Данные успешно сохранены во вкладку "7_Реестр_Проверок"! Нажмите кнопку "2. Открыть Акт в PDF / Печать".');
         
     } catch(googleError) {
         alert("Не удалось отправить данные в Google Таблицу. Проверьте сеть.");
@@ -202,58 +201,23 @@ async function submitAuditOnly() {
     }
 }
 
-// КНОПКА 2: Генерация бланка печати без блокировок операционной системы
-function downloadPdfOnly() {
+// 👑 НАДЁЖНЫЙ ВЫЗОВ НАЖАТИЕМ ОДНОЙ КНОПКИ БЕЗ ОТКРЫТИЯ ОКН И ВКЛАДОК
+function openNativePrintSystem() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
-    // Формируем чистый HTML-текст для печатной страницы акта
-    const printWindow = window.open('', '_blank');
+    // Передаем данные в печатную разметку текущей страницы
+    document.getElementById('p-date').textContent = currentDateStr;
+    document.getElementById('p-inspector').textContent = auditSession.inspector;
+    document.getElementById('p-object').textContent = auditSession.objectName;
+    document.getElementById('p-contractor').textContent = auditSession.contractor;
+    document.getElementById('p-violations').textContent = finalViolationsText;
     
-    // Преобразуем переносы строк для корректного отображения в HTML бланке
-    const htmlViolations = finalViolationsText.replace(/\n/g, '<br>');
-
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Акт проверки ОТиПБ</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 40px; color: #000; line-height: 1.5; }
-                .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; }
-                .header h2 { margin: 0 0 10px 0; font-size: 22px; }
-                .meta-table { width: 100%; margin-bottom: 30px; font-size: 15px; }
-                .meta-table td { padding: 6px 0; }
-                .meta-table td:first-child { width: 35%; font-weight: bold; }
-                .section-title { font-size: 17px; font-weight: bold; margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-                .violations { font-size: 15px; background: #fdfdfd; }
-                .footer { margin-top: 60px; display: flex; justify-content: space-between; font-size: 15px; }
-                .no-print-btn { display: block; width: 100%; max-width: 200px; padding: 12px;
-                background: #27ae60; color: white; border: none; border-radius: 5px; font-weight: bold;
-                font-size: 15px; cursor: pointer; text-align: center; margin: 0 auto 30px auto; }
-                @media print { .no-print-btn { display: none; } }
-
-
-                Распечатать / В PDF 📄
-                АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ
-                Дата проверки:${currentDateStr}Выполнил проверку
-                (Инспектор):${auditSession.inspector}Объект контроля:${auditSession.objectName}
-                Подрядная организация:${auditSession.contractor}
-
-                Результаты инспекции и выявленные нарушения:
-                ${htmlViolations}
-
-                Подпись проверяющего: _____________________
-                Подпись представителя подрядчика: _____________________
-
-                // Автоматически вызываем диалог печати/сохранения в PDF при открытии вкладки
-                setTimeout(function() { window.print(); }, 500);
-                </script>
-
-
-                `);
-
-                printWindow.document.close();
-                document.getElementById('pdf-btn').innerText = "📄 Открыть Акт еще раз";
-                document.getElementById('pdf-btn').disabled = false;
+    // Принудительно вызываем системный инструмент генерации PDF устройства
+    window.print();
+    
+    setTimeout(() => {
+        if(confirm("Печать завершена! Очистить форму чек-листа для начала новой инспекции?")) {
+            location.reload();
+        }
+    }, 1000);
 }
-
