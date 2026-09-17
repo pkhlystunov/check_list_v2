@@ -1,5 +1,5 @@
 // НА СТРОКЕ 2 УКАЖИТЕ ССЫЛКУ, КОТОРУЮ ВАМ ВЫДАЛ GOOGLE APPS SCRIPT ПРИ ДЕПЛОЕ:
-const API_URL = "https://google.com"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbz2etXhD_o2AxHQtlaxnlv4fxb8PzBWi9qt9cUzxrBKkMjczHHuIg2B6KAeRpZiS7AP/exec"; 
 
 let auditSession = { 
     inspector: '', 
