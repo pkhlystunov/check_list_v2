@@ -50,14 +50,16 @@
         <!-- Лента вопросов для инспектора -->
         <div id="questions-container"></div>
         
+        <!-- Блок раздельных кнопок управления -->
         <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
-            <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">Сохранить в Реестр и Скачать PDF 📄</button>
-            <button onclick="backToStep1()" class="btn btn-secondary">← Назад к выбору объекта</button>
+            <button onclick="submitAuditOnly()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">1. Сохранить в Реестр Google 💾</button>
+            <button onclick="downloadPdfOnly()" id="pdf-btn" class="btn btn-secondary" style="background: #3498db; color: white;" disabled>2. Скачать Акт в PDF 📄</button>
+            <button onclick="backToStep1()" id="back-btn" class="btn btn-secondary">← Назад к выбору объекта</button>
         </div>
     </div>
 </div>
 
-<!-- СКРЫТЫЙ КОНТЕЙНЕР ДЛЯ ИДЕАЛЬНОЙ ГЕНЕРАЦИИ PDF (Браузер его не видит, но библиотека использует как макет) -->
+<!-- СКРЫТЫЙ КОНТЕЙНЕР ДЛЯ ИДЕАЛЬНОЙ ГЕНЕРАЦИИ PDF -->
 <div id="pdf-hidden-template" style="position: absolute; left: -9999px; top: -9999px; width: 190mm; font-family: Arial, sans-serif; color: #000; background: #fff; padding: 10px;">
     <div style="border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px;">
         <h2 style="margin: 0; color: #2c3e50; font-size: 20px; text-align: center;">АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ</h2>
