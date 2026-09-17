@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Контроль ОТиПБ</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Подключаем скрипт генерации PDF -->
+    <script src="https://cloudflare.com"></script>
 </head>
 <body>
 
@@ -29,7 +31,6 @@
                 <option value="">-- Выберите подрядчика --</option>
             </select>
             
-            <!-- Исправлено: теперь вызывается актуальная функция старта -->
             <button onclick="startFullAudit()" class="btn btn-primary" style="margin-top: 15px;">Начать аудит (Загрузить чек-лист) 🚀</button>
         </div>
         
@@ -38,16 +39,21 @@
 
     <!-- ШАГ 2: Экран прохождения полного чек-листа -->
     <div id="step-3-checklist" style="display:none;">
-        <div class="audit-header card">
-            <p>👤 <b>Инспектор:</b> <span id="audit-meta-insp"></span></p>
-            <p>🏗️ <b>Объект:</b> <span id="audit-meta-obj"></span></p>
-            <p>🚜 <b>Подрядчик:</b> <span id="audit-meta-contr"></span></p>
+        <!-- Обертка, которая пойдет на печать в PDF -->
+        <div id="pdf-printable-area">
+            <div class="audit-header card">
+                <h3 style="margin-top:0; color:#2c3e50;">АКТ ПРОВЕРКИ ОТиПБ</h3>
+                <p>👤 <b>Инспектор:</b> <span id="audit-meta-insp"></span></p>
+                <p>🏗️ <b>Объект:</b> <span id="audit-meta-obj"></span></p>
+                <p>🚜 <b>Подрядчик:</b> <span id="audit-meta-contr"></span></p>
+                <p>📅 <b>Дата:</b> <span id="audit-meta-date"></span></p>
+            </div>
+            
+            <div id="questions-container"></div>
         </div>
         
-        <div id="questions-container"></div>
-        
         <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
-            <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">Сохранить аудит в Google Таблицу</button>
+            <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">Сохранить в Реестр и Скачать PDF 📄</button>
             <button onclick="backToStep1()" class="btn btn-secondary">← Назад к выбору объекта</button>
         </div>
     </div>
