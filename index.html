@@ -51,7 +51,10 @@
         <!-- Блок раздельных кнопок управления -->
         <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
             <button onclick="submitAuditOnly()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">1. Сохранить в Реестр Google 💾</button>
-            <button onclick="openGoogleGeneratedPdf()" id="pdf-btn" class="btn btn-secondary" style="background: #3498db; color: white;" disabled>2. Открыть готовый Акт PDF 📄</button>
+            
+            <!-- Исправлено: заменен вызов функции на downloadPdfOnly() -->
+            <button onclick="downloadPdfOnly()" id="pdf-btn" class="btn btn-secondary" style="background: #3498db; color: white;" disabled>2. Открыть готовый Акт PDF 📄</button>
+            
             <button onclick="backToStep1()" id="back-btn" class="btn btn-secondary">← Назад к выбору объекта</button>
         </div>
     </div>
