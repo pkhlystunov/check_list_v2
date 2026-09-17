@@ -8,8 +8,7 @@ let auditSession = {
     results: [] 
 };
 
-// Переменная для хранения ссылки на PDF, сгенерированный сервером Google
-let googleServerPdfUrl = "";
+let finalViolationsText = "";
 
 document.addEventListener("DOMContentLoaded", async function() {
     const errorDiv = document.getElementById('error-display');
@@ -61,7 +60,7 @@ async function startFullAudit() {
     auditSession.objectName = obj; 
     auditSession.contractor = contr;
     auditSession.results = [];
-    googleServerPdfUrl = "";
+    finalViolationsText = "";
     
     document.getElementById('pdf-btn').disabled = true;
     document.getElementById('submit-btn').disabled = false;
@@ -155,7 +154,7 @@ function setQuestionResult(id, status, questionText, categoryName, normativeText
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 }
 
-// КНОПКА 1: Отправка данных. Сервер сам сформирует PDF ячейку и создаст файл на Google Диске!
+// КНОПКА 1: Сохранение нарушений одной строкой в реестр
 async function submitAuditOnly() {
     if (auditSession.results.length === 0) {
         return alert("Вы не провели оценку ни одного критерия из чек-листа!");
@@ -175,7 +174,7 @@ async function submitAuditOnly() {
         }
     });
 
-    const finalViolationsText = violations.length > 0 
+    finalViolationsText = violations.length > 0 
         ? violations.join("\n\n") 
         : "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
 
@@ -183,48 +182,78 @@ async function submitAuditOnly() {
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true; 
-    btn.innerText = "⏳ Генерация Акта на сервере Google...";
+    btn.innerText = "⏳ Сохранение в таблицу...";
 
     try {
-        const response = await fetch(API_URL, {
+        await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify(auditSession),
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         
-        const rawResponse = await response.text();
-        const serverResult = JSON.parse(rawResponse);
-        
-        if(!serverResult.success) throw new Error(serverResult.error);
-        
-        // Сохраняем готовую серверную ссылку на скачивание
-        googleServerPdfUrl = serverResult.pdfUrl;
-        
-        btn.innerText = "✅ Сохранено в Реестр!";
+        btn.innerText = "✅ Данные сохранены!";
         document.getElementById('pdf-btn').disabled = false;
+        alert('Данные внесены в лист "7_Реестр_Проверок"! Нажмите вторую кнопку для вывода Акта на печать.');
         
-        alert('Успешно! Данные занесены в ячейку реестра, а сервер Google собрал официальный PDF-акт. Нажмите "2. Открыть готовый Акт PDF" для просмотра.');
-        
-    } catch(error) {
-        console.error("Ошибка:", error);
-        alert("Ошибка сервера при записи и сборке PDF: " + error.message);
+    } catch(googleError) {
+        alert("Не удалось отправить данные в Google Таблицу. Проверьте сеть.");
         btn.disabled = false;
         btn.innerText = "1. Сохранить в Реестр Google 💾";
     }
 }
 
-// КНОПКА 2: Простое открытие официального, скомпилированного на сервере Google PDF-документа
-function openGoogleGeneratedPdf() {
-    if(!googleServerPdfUrl) {
-        return alert("Сначала сохраните аудит в реестр, чтобы сервер сформировал документ!");
-    }
+// КНОПКА 2: Генерация бланка печати без блокировок операционной системы
+function downloadPdfOnly() {
+    const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
-    // Переходим по безопасной, чистой ссылке Google Диска
-    window.open(googleServerPdfUrl, '_blank');
+    // Формируем чистый HTML-текст для печатной страницы акта
+    const printWindow = window.open('', '_blank');
     
-    setTimeout(() => {
-        if(confirm("Акт открыт во внешней вкладке! Желаете очистить форму и вернуться к выбору объекта?")) {
-            location.reload();
-        }
-    }, 1500);
+    // Преобразуем переносы строк для корректного отображения в HTML бланке
+    const htmlViolations = finalViolationsText.replace(/\n/g, '<br>');
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Акт проверки ОТиПБ</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 40px; color: #000; line-height: 1.5; }
+                .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; }
+                .header h2 { margin: 0 0 10px 0; font-size: 22px; }
+                .meta-table { width: 100%; margin-bottom: 30px; font-size: 15px; }
+                .meta-table td { padding: 6px 0; }
+                .meta-table td:first-child { width: 35%; font-weight: bold; }
+                .section-title { font-size: 17px; font-weight: bold; margin-top: 25px; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                .violations { font-size: 15px; background: #fdfdfd; }
+                .footer { margin-top: 60px; display: flex; justify-content: space-between; font-size: 15px; }
+                .no-print-btn { display: block; width: 100%; max-width: 200px; padding: 12px;
+                background: #27ae60; color: white; border: none; border-radius: 5px; font-weight: bold;
+                font-size: 15px; cursor: pointer; text-align: center; margin: 0 auto 30px auto; }
+                @media print { .no-print-btn { display: none; } }
+
+
+                Распечатать / В PDF 📄
+                АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ
+                Дата проверки:${currentDateStr}Выполнил проверку
+                (Инспектор):${auditSession.inspector}Объект контроля:${auditSession.objectName}
+                Подрядная организация:${auditSession.contractor}
+
+                Результаты инспекции и выявленные нарушения:
+                ${htmlViolations}
+
+                Подпись проверяющего: _____________________
+                Подпись представителя подрядчика: _____________________
+
+                // Автоматически вызываем диалог печати/сохранения в PDF при открытии вкладки
+                setTimeout(function() { window.print(); }, 500);
+                </script>
+
+
+                `);
+
+                printWindow.document.close();
+                document.getElementById('pdf-btn').innerText = "📄 Открыть Акт еще раз";
+                document.getElementById('pdf-btn').disabled = false;
 }
+
