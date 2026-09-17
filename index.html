@@ -29,42 +29,25 @@
                 <option value="">-- Выберите подрядчика --</option>
             </select>
             
-            <button onclick="goToStep2()" class="btn btn-primary" style="margin-top: 15px;">Далее к выбору чек-листа →</button>
+            <button onclick="startFullAudit()" class="btn btn-primary" style="margin-top: 15px;">Начать аудит (Загрузить чек-лист) 🚀</button>
         </div>
         
         <div id="error-display" class="error-log"></div>
     </div>
 
-    <!-- ШАГ 2: Выбор Раздела из 3_Чек_лист -->
-    <div id="step-2-form" class="card primary-border" style="display:none;">
-        <h3>Выбор раздела чек-листа</h3>
-        <p class="meta-info">Объект: <span id="meta-obj"></span> | Подрядчик: <span id="meta-contr"></span></p>
-        
-        <label for="category-select"><b>Выберите направление проверки (Лист 3_Чек_лист):</b></label>
-        <select id="category-select">
-            <option value="Все разделы">-- Загрузить все вопросы --</option>
-        </select>
-        
-        <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
-            <button onclick="startAudit()" class="btn btn-primary">Начать аудит 🚀</button>
-            <button onclick="backToStep1()" class="btn btn-secondary">← Назад</button>
-        </div>
-    </div>
-
-    <!-- ШАГ 3: Прохождение чек-листа -->
+    <!-- ШАГ 2: Экран прохождения полного чек-листа -->
     <div id="step-3-checklist" style="display:none;">
         <div class="audit-header card">
             <p>👤 <b>Инспектор:</b> <span id="audit-meta-insp"></span></p>
             <p>🏗️ <b>Объект:</b> <span id="audit-meta-obj"></span></p>
             <p>🚜 <b>Подрядчик:</b> <span id="audit-meta-contr"></span></p>
-            <p>📂 <b>Раздел:</b> <span id="audit-meta-cat"></span></p>
         </div>
         
         <div id="questions-container"></div>
         
         <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
             <button onclick="submitAudit()" id="submit-btn" class="btn btn-primary" style="background: #27ae60;">Сохранить аудит в Google Таблицу</button>
-            <button onclick="backToStep2()" class="btn btn-secondary">Изменить раздел</button>
+            <button onclick="backToStep1()" class="btn btn-secondary">← Назад к выбору объекта</button>
         </div>
     </div>
 </div>
