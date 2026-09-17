@@ -148,64 +148,86 @@ function setQuestionResult(id, status, questionText, categoryName, normativeText
 }
 
 async function submitAudit() {
-    // Вытаскиваем только нарушения
+    if (auditSession.results.length === 0) {
+        return alert("Вы не провели оценку ни одного критерия из чек-листа!");
+    }
+
     const violations = [];
     
+    // Собираем нарушения
     auditSession.results.forEach(item => {
         if (item.status === 'Нарушение') {
             const inp = document.getElementById('comment-' + item.id);
             const commentText = inp ? inp.value.trim() : '';
             
             let violationEntry = "• [" + item.category + "] " + item.question;
-            if (item.normative) violationEntry += " (Норматив: " + item.normative + ")";
-            violationEntry += " — Замечание: " + (commentText || "не указано");
+            if (item.normative) violationEntry += " (Пункт правил: " + item.normative + ")";
+            violationEntry += "\n  Замечание инспектора: " + (commentText || "не расписано");
             
             violations.push(violationEntry);
         }
     });
 
-    // Формируем текст для одной ячейки Google-таблицы
-    auditSession.aggregatedViolations = violations.length > 0 
-        ? violations.join("\n") 
+    // Текст для записи в ОДНУ ячейку Google Таблицы
+    const textForGoogleCell = violations.length > 0 
+        ? violations.join("\n\n") 
         : "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
+
+    auditSession.aggregatedViolations = textForGoogleCell;
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true; 
-    btn.innerText = "Формирование документов...";
+    btn.innerText = "1/2 Сохранение в реестр...";
 
+    let isGoogleSaved = false;
+
+    // ШАГ 1: Сначала сохраняем в Google Таблицу (Базовое действие)
     try {
-        // 1. Сначала скачиваем PDF локально на устройство инспектора
-        const element = document.getElementById('pdf-printable-area');
-        
-        // Временное скрытие кнопок внутри карточек для красивого PDF
-        const actionButtons = element.querySelectorAll('.btn-row');
-        actionButtons.forEach(b => b.style.display = 'none');
-
-        const pdfOptions = {
-            margin: 10,
-            filename: 'Акт_ОТ_' + auditSession.objectName + '_' + new Date().toLocaleDateString('ru-RU') + '.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        await html2pdf().set(pdfOptions).from(element).save();
-        
-        // Возвращаем кнопки обратно на экран
-        actionButtons.forEach(b => b.style.display = 'flex');
-
-        // 2. Отправляем агрегированную строку в Google Реестр
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify(auditSession),
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-
-        alert('Успешно! Акт сохранен в PDF, а сводная запись добавлена в лист "7_Реестр_Проверок" в одну строку.');
-        location.reload();
-    } catch(error) {
-        alert("Произошел сбой при сохранении. Проверьте F12.");
-        btn.disabled = false; 
+        const resultText = await response.text();
+        isGoogleSaved = true;
+    } catch(googleError) {
+        console.error("Ошибка сохранения в Google:", googleError);
+        alert("Не удалось отправить данные в Google Таблицу. Проверьте сеть.");
+        btn.disabled = false;
         btn.innerText = "Сохранить в Реестр и Скачать PDF 📄";
+        return;
     }
-}
+
+    // ШАГ 2: Если в таблицу ушло — генерируем PDF из чистого скрытого макета
+    if (isGoogleSaved) {
+        btn.innerText = "2/2 Создание PDF файла...";
+        
+        try {
+            // Наполняем текстовыми данными скрытый печатный бланк
+            const currentDateStr = new Date().toLocaleDateString('ru-RU');
+            document.getElementById('pdf-date').textContent = currentDateStr;
+            document.getElementById('pdf-inspector').textContent = auditSession.inspector;
+            document.getElementById('pdf-object').textContent = auditSession.objectName;
+            document.getElementById('pdf-contractor').textContent = auditSession.contractor;
+            
+            // Если нарушений нет — пишем красивый текст, если есть — выводим список
+            document.getElementById('pdf-violations-list').textContent = textForGoogleCell;
+
+            const printElement = document.getElementById('pdf-hidden-template');
+
+            const pdfOptions = {
+                margin:,
+                filename: 'Акт_ОТ_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Скачиваем файл на телефон/ПК
+            await html2pdf().set(pdfOptions).from(printElement).save();
+            
+            alert('Успешно! Данные занесены в реестр в одну строку, а официальный PDF-акт скачан на ваше устройство.');
+            location.reload();
+
+        } catch(pdfError) {
+            console.error("Ошибка генерации PDF:", pdfError);
