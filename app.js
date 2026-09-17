@@ -236,3 +236,17 @@ async function downloadPdfOnly() {
         };
 
         // Запускаем сборку и скачивание акта
+        await html2pdf().set(pdfOptions).from(printElement).save();
+        pdfBtn.innerText = "📄 Скачать еще раз";
+        pdfBtn.disabled = false;
+        // Спрашиваем инспектора о завершении сессии
+        if (confirm("Акт успешно скачан! Очистить форму и вернуться на главный экран для новой проверки?")) {
+            location.reload();
+        }
+        } catch(pdfError) {
+        console.error("Ошибка PDF:", pdfError);
+        alert('Не удалось запустить скачивание файла. Проверьте разрешения браузера на загрузку документов.');
+        pdfBtn.disabled = false;
+        pdfBtn.innerText = "2. Скачать Акт в PDF 📄";
+    }
+}
